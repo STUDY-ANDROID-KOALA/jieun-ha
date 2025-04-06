@@ -14,7 +14,7 @@
 * 1을 모두 덮는 것이 불가능한 경우 -1 출력
 
 아이디어 :
-brute force
+dfs
 이차원 배열 활용 -> 인덱스 하나하나 싹 돌면서 if~elif~else 조건 분기
 가진 색종이 개수 카운트 [5] 다 5로 초기화하고 쓸 때마다 개수 -1 해줌
 입력받을 이차원 배열 arr_paper[10][10]
@@ -29,94 +29,57 @@ brute force
   부족 시 바로 -1
   색종이 집어넣은 경우에는 가진 색종이 개수 카운트 배열에 집어넣기
 """
+result = float('inf')
 
-def bf(paper, complete, own_paper):
-    for i in range(10):
+def dfs(paper, own_paper, used, x):
+    global result
+
+    if used > result:
+        return
+
+    for i in range(x, 10):
         for j in range(10):
-            if paper[i][j] == 1 and complete[i][j] == 0:
-                paper_test(i, j, paper, complete, own_paper)
-                # print(f"({i}, {j}) 탐색 후 남은 색종이 수 : {own_paper}")
+            if paper[i][j] == 1:
+                for size in range(5, 0, -1):
+                    if own_paper[size-1] > 0 and paper_valid(i, j, paper, size):
+                        fill_complete(i, j, paper, size, 0)
+                        own_paper[size-1] -= 1
 
-    use = 25 - sum(own_paper)
-    print(use)
+                        dfs(paper, own_paper, used + 1, i)
 
-def paper_test(i, j, paper, complete, own_paper):
-    if paper_valid_test(i, j, paper, 5): # 5x5 자리 있는지 확인
-        if own_paper[4] >= 1: # 5x5 1장 필요
-            own_paper[4] -= 1
-            fill_complete(i, j, complete, 5)
-        elif own_paper[0] >= 4 and own_paper[1] >= 3 and own_paper[2] >= 1: # 1x1 4개, 2x2 3개, 3x3 1개 필요
-            own_paper[0] -= 4
-            own_paper[1] -= 3
-            own_paper[2] -= 1
-            fill_complete(i, j, complete,5)
-        else:
-            print(-1)
-            exit()
-    elif paper_valid_test(i, j, paper, 4): # 4x4 자리 있는지 확인
-        if own_paper[3] >= 1:
-            own_paper[3] -= 1
-            fill_complete(i, j, complete,4)
-        elif own_paper[1] >= 4:
-            own_paper[1] -= 4
-            fill_complete(i, j, complete,4)
-        elif own_paper[0] >= 4 and own_paper[1] >= 3:
-            own_paper[0] -= 4
-            own_paper[1] -= 3
-            fill_complete(i, j, complete,4)
-        else:
-            print(-1)
-            exit()
-    elif paper_valid_test(i, j, paper, 3): # 3x3 자리 있는지 확인
-        if own_paper[2] >= 1:
-            own_paper[2] -= 1
-            fill_complete(i, j, complete,3)
-        elif own_paper[0] >= 5 and own_paper[1] >= 1:
-            own_paper[0] -= 5
-            own_paper[1] -= 1
-            fill_complete(i, j, complete,3)
-        else:
-            print(-1)
-            exit()
-    elif paper_valid_test(i, j, paper, 2): # 2x2 자리 있는지 확인
-        if own_paper[1] >= 1:
-            own_paper[1] -= 1
-            fill_complete(i, j, complete,2)
-        elif own_paper[0] >= 4:
-            own_paper[0] -= 4
-            fill_complete(i, j, complete,2)
-        else:
-            print(-1)
-            exit()
-    elif paper_valid_test(i, j, paper, 1): # 1x1 자리 있는지 확인
-        if own_paper[0] >= 1:
-            own_paper[0] -= 1
-            fill_complete(i, j, complete, 1)
-        else:
-            print(-1)
-            exit()
+                        fill_complete(i, j, paper, size, 1)
+                        own_paper[size-1] += 1
+                return
 
-def paper_valid_test(i, j, paper, n):
+    result = min(result, used)
+
+def paper_valid(i, j, paper, n):
     if i + n > 10 or j + n > 10:
-        return 0
+        return False
 
     for col in range(i, i + n):
         for row in range(j, j + n):
             if paper[col][row] == 0:
-                return 0
-    return 1
+                return False
+    return True
 
-def fill_complete(top_start_col, top_start_row, complete, n):
+def fill_complete(top_start_col, top_start_row, paper, n, fill):
     for col in range(top_start_col, top_start_col + n):
         for row in range(top_start_row, top_start_row + n):
-            complete[col][row] = 1
+            paper[col][row] = fill
 
 def main():
+    global result
+
     paper = [list(map(int, input().split())) for _ in range(10)]
-    complete = [[0 for row in range(10)] for col in range(10)]
     own_paper = [5 for _ in range(5)]
 
-    bf(paper, complete, own_paper)
+    dfs(paper, own_paper, 0, 0)
+
+    if result != float('inf'):
+        print(result)
+    else:
+        print(-1)
 
 if __name__ == "__main__":
     main()
