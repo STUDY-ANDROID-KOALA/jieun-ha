@@ -61,9 +61,181 @@ N줄에 마을 도로 정보
 아이디어 :
 최단 경로 -> dfs
 """
+from collections import deque
+
+# 상, 우상, 우, 우하, 하, 좌하, 좌, 좌상
+di = [-1, -1, 0, 1, 1, 1, 0, -1]
+dj = [0, 1, 1, 1, 0, -1, -1, -1]
+
+# 메두사가 가는 길 dfs로 탐색
+def find_route(si, sj, ei, ej):
+    q = deque()
+    visited = [[0] * n for _ in range(n)]
+
+    q.append((si, sj))
+    visited[si][sj] = (si, sj) # 직전 위치 저장
+
+    while q:
+        ci, cj = q.popleft()
+
+        if (ci, cj) == (ei, ej): # 목적지 도착 시 경로 저장
+            route = []
+            ci, cj = visited[ci][cj]
+            while (ci, cj) != (si, sj):
+                route.append((ci, cj))
+                ci, cj = visited[ci][cj]
+
+            return route[::-1]
+
+        for dx, dy in (-1,0),(1,0),(0,-1),(0,1):
+            ni = ci + dx
+            nj = cj + dy
+
+            # 경계를 넘어가지 않고, 직전 위치가 저장되어 있지 않으면서, 도로(0)인 곳
+            if 0 <= ni < n and 0 <= nj < n and visited[ni][nj] == 0 and town[ni][nj] == 0:
+                visited[ni][nj] = (ci, cj)
+                q.append((ni, nj))
+
+    return -1
+
+
+# tv, tstone = make_stone(warrior_arr, mi, mj, direction)
+def make_stone(warrior_count_arr, medusa_i, medusa_j, dr):
+    v = [[0] * n for _ in range(n)] # 메두사 시선 1, 전사에 가려진 곳 2, 빈 땅 0
+    cnt = 0  # 시야에 걸리는 전사 수
+
+    # [1] direction 방향으로 전사가 1명 이상인 곳을 만날 때까지 1 표시, 이후 좌표 2 표시
+    ni = medusa_i + di[dr]
+    nj = medusa_j + dj[dr]
+    while 0 <= ni < n and 0 <= nj < n:
+        v[ni][nj] = 1  # 메두사 시선
+
+        if warrior_count_arr[ni][nj] > 0:  # 전사가 있는 경우
+            cnt += warrior_count_arr[ni][nj]
+            ni = ni + di[dr]
+            nj = nj + dj[dr]
+            mark_line(v, ni, nj, dr)  # 전사에 가려진 곳 표시
+            break
+
+        ni = ni + di[dr]
+        nj = nj + dj[dr]
+
+    # [2] dr-1, dr+1 방향으로 동일 처리, 대각선 원점 잡고 dr 방향 처리
+    for org_dr in ((dr - 1) % 8, (dr + 1) % 8): # dr = 0(상)인 경우, 좌상은 7, 우상은 1 나옴
+        si, sj = mi + di[org_dr], mj + dj[org_dr] # 첫 대각선 위치부터 체크
+
+        while 0 <= si < n and 0 <= sj < n:
+            if v[si][sj] == 0 and warrior_count_arr[si][sj] > 0: # 첫번째에서 전사 만난 경우
+                v[si][sj] = 1
+                cnt += warrior_count_arr[si][sj] # 돌로 만든 전사 수 합
+                mark_safe(v, si, sj, dr, org_dr) # 전사가 바라보는 방향 org_dr로 시야 확장
+                break
+
+            # 첫번째에서 전사 만나지 않은 경우 - 직선 탐색
+            ci, cj = si, sj
+            while 0 <= ci < n and 0 <= cj < n:
+                if v[ci][cj] == 0: # 처음 계산하는 빈 땅인 경우
+                    v[ci][cj] = 1
+                    if warrior_count_arr[ci][cj] > 0: # 전사 만난 경우
+                        cnt += warrior_count_arr[ci][cj]
+                        mark_safe(v, ci, cj, dr, org_dr) # 전사가 바라보는 방향 org_dr로 시야 확장
+                        break
+                else: # 빈 땅이 아닌 경우 다른 방향에서 이미 처리된 곳이므로 중지
+                    break
+                ci, cj = ci+di[dr], cj+dj[dr]
+
+            si, sj = si + di[org_dr], sj + dj[org_dr]
+
+    return v, cnt
+
+# mark_line(v, ni, nj, dr)
+def mark_line(v, ci, cj, dr):
+    while 0 <= ci < n and 0 <= cj < n:
+        v[ci][cj] = 2  # 전사에 가려진 곳
+        ci, cj = ci + di[dr], cj + dj[dr]  # 해당 방향으로 한 칸 이동
+
+# 전사를 기준으로 시야 확장. 대각선 + 직선 형태로 퍼져 나감
+def mark_safe(v, si, sj, dr, org_dr):
+    # [1] 직선 방향
+    ci, cj = si + di[dr], sj + dj[dr]
+    mark_line(v, ci, cj, dr)
+
+    # [2] 바라보는 방향으로 한줄씩 표시
+    ci, cj = si + di[org_dr], sj + dj[org_dr]
+    while 0 <= ci < n and 0 <= cj < n:
+        mark_line(v, ci, cj, dr)
+        ci, cj = ci + di[org_dr], cj + dj[org_dr]
+
+def move_men(v, me_i, me_j):
+    # (상하좌우), (좌우상하) 메두사 시야가 아니면 (!=1)
+    move, attk = 0, 0
+
+    for dirs in (((-1,0),(1,0),(0,-1),(0,1)), ((0,-1),(0,1),(-1,0),(1,0))):
+        for idx in range(len(men)-1,-1,-1):
+            ci,cj = men[idx]
+            if v[ci][cj]==1:                # 메두사 시야면 얼음!
+                continue
+
+            dist = abs(me_i-ci) + abs(me_j-cj)    # 현재 거리
+            for dii,djj in dirs:
+                ni,nj = ci + dii, cj + djj
+                # 범위내 메두사 시야 아니고 현재보다 줄어드는 방향이면 (상하좌우 우선순위로 이동)
+                if 0<=ni<n and 0<=nj<n and v[ni][nj]!=1 and dist>abs(me_i-ni)+abs(me_j-nj):
+                    if (ni,nj)==(me_i,mj): # 메두사 만나면 공격하고 사망
+                        attk+=1
+                        men.pop(idx)
+                    else:
+                        men[idx]=[ni,nj]
+                    move+=1
+                    break
+    return move, attk
+
+##################################################################
+##################################################################
 
 n, m = map(int, input().split())
 home_r, home_c, park_r, park_c = map(int, input().split())
-
+men_list = list(map(int, input().split()))
 town = [list(map(int, input().split())) for _ in range(n)]
+
+men = []
+for i in range(0, m*2, 2):
+    men.append([men_list[i], men_list[i+1]])
+
+route = find_route(home_r, home_c, park_r, park_c)
+
+if route == -1:
+    print(-1)
+else:
+    # [1] 메두사의 이동 : 지정된 최단거리로 한 칸씩 이동
+    for mi, mj in route:
+        move_count = 0
+        attack_count = 0
+
+        for i in range (len(men) - 1, -1, -1): # 삭제 시 역순으로 접근
+            if men[i] == [mi, mj]:  # 메두사와 같은 좌표일 때
+                men.pop(i)
+
+        #  [2] 메두사의 시선 : 상하좌우 네 방향 가장 많이 돌로 만들 수 있는 방향
+        # => sight[]에 표시해서 이동 시 참조(메두사 시선 1, 전사에 가려진 곳 2, 빈 땅 = 0)
+        # warrior_arr[][] : 지도에 있는 전사 수 표시
+
+        warrior_arr = [[0] * n for _ in range(n)]
+        for ti, tj in men:
+            warrior_arr[ti][tj] += 1
+
+        max_stone = -1
+        sight = []
+
+        for direction in (0, 4, 6, 2): # 상하좌우 순서로 처리
+            tv, tstone = make_stone(warrior_arr, mi, mj, direction)
+            if max_stone < tstone:
+                max_stone = tstone
+                sight = tv
+
+        # [3] 전사들의 이동(한 칸씩 두번) : 메두사 있는 경우 공격
+        move_count, attack_count = move_men(sight, mi, mj)
+
+        print(move_count, max_stone, attack_count)
+    print(0)
 
