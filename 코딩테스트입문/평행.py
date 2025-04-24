@@ -35,14 +35,13 @@ def solution(dots):
 
     permutation(0)
 
-    for idxs in path_list:
-        a, b, c, d = idxs
+    for j in path_list:
+        a, b, c, d = j
         x1, y1 = dots[a]
         x2, y2 = dots[b]
         x3, y3 = dots[c]
         x4, y4 = dots[d]
 
-        # 기울기를 비교할 때는 cross multiply (분수 비교의 곱셈 방법)
         if (y2 - y1) * (x4 - x3) == (y4 - y3) * (x2 - x1):
             return 1
     return 0
